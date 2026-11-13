@@ -325,7 +325,7 @@ class MarsGT(nn.Module):
 
                 lll2 = 0
                 g = [int(i) for i in l]
-                for i in set([int(k) for k in l]):
+                for i in (set([int(k) for k in l]) if self.h is not None else ()):   # unused (released); skipped without stage 1
                     ll2 = F.cosine_similarity(self.h[list(range(self.h.shape[0])) * self.h.shape[0],], self.h[
                         [v for v in range(self.h.shape[0]) for i in range(self.h.shape[0])]]).mean()
                     lll2 = ll2 + lll2
