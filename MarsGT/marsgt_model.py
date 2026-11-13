@@ -223,14 +223,18 @@ class NodeDimensionReduction(nn.Module):
 
 class MarsGT(nn.Module):
     def __init__(self, gnn, h, labsm, n_hid, n_batch, device, lr, wd, num_epochs=1, cosine_loss=False,
-                 cosine_reduce='sum', cosine_self_pairs=True, cosine_weight=1.0):
-        """cosine_loss=True adds the paper's within-cluster cosine term (eq. 12: Loss = KL_cluster - Cos_loss + ...)
+                 cosine_reduce='sum', cosine_self_pairs=True, cosine_weight=1.0, cluster_weight=1.0):
+        """cluster_weight scales the stage-2 label-smoothed clustering loss toward the initial labels (1.0 = released;
+        0 removes it, leaving the reconstruction and gene-peak terms). Note that labsm=1.0 is NOT label-free in a
+        neutral sense: its target is uniform over all n_hid outputs, which flattens each cell's embedding.
+        cosine_loss=True adds the paper's within-cluster cosine term (eq. 12: Loss = KL_cluster - Cos_loss + ...)
         computed on the CURRENT batch's cell embeddings, as stage 1 does. The released code's version (lll2) used a
         stale stage-1 tensor (self.h) and was commented out; default False keeps the released behaviour."""
         super(MarsGT, self).__init__()
         self.cosine_loss = cosine_loss
         self.cosine_reduce, self.cosine_self_pairs = cosine_reduce, cosine_self_pairs   # see cluster_cosine()
         self.cosine_weight = cosine_weight   # weight of the stage-2 cosine term when cosine_loss=True
+        self.cluster_weight = cluster_weight
         self.lr = lr
         self.wd = wd
         self.gnn = gnn
@@ -359,7 +363,10 @@ class MarsGT(nn.Module):
 
                 loss_net = F.kl_div(logp_x3, logp_y3, reduction='mean', log_target=True)
 
-                loss = loss_net + loss_cluster + loss_kl  # - lll2
+                if self.cluster_weight == 1.0:
+                    loss = loss_net + loss_cluster + loss_kl  # - lll2   (released)
+                else:
+                    loss = loss_net + self.cluster_weight * loss_cluster + loss_kl
                 if self.cosine_loss:   # paper eq. 12 cosine term, on this batch (mirrors stage 1)
                     cos_sum, _ = cluster_cosine(cell_emb, l, self.cosine_reduce, self.cosine_self_pairs)
                     loss = loss - self.cosine_weight * cos_sum

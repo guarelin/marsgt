@@ -142,6 +142,26 @@ def test_cosine_weight():
     _, _, w0 = run(0.0, cos_loss=True); _, _, off = run(0.0, cos_loss=False)
     assert all(torch.allclose(a, b, atol=1e-6) for a, b in zip(w0, off))
 
+def test_cluster_weight():
+    """cluster_weight scales the stage-2 clustering loss; 1.0 is the released loss; 0 removes it."""
+    torch.set_num_threads(1)
+    D = _data(); R, A, GP, ini, idx, nodes, names = D
+    def run(cw, **kw):
+        torch.manual_seed(0); np.random.seed(0)
+        nd = mm.NodeDimensionReduction(R, A, idx, ini, wd=0.1, epochs=1, **KW)
+        gnn, _, _, _, h = nd.train_model(n_batch=len(idx))
+        m = mm.MarsGT(gnn=gnn, h=h, labsm=0.1, n_hid=32, n_batch=len(idx), device=DEV, lr=5e-4, wd=0.1, **kw)
+        if cw is not None: m.cluster_weight = cw
+        g = m.train_model(indices=idx, RNA_matrix=R, ATAC_matrix=A, Gene_Peak=GP, ini_p1=ini)
+        return m.history[-1], [p.detach().clone() for p in g.parameters()]
+    _, ref = run(None); _, one = run(None, cluster_weight=1.0)
+    assert all(torch.equal(a, b) for a, b in zip(ref, one))      # default == explicit 1.0, bitwise
+    for cw in (0.0, 0.5):
+        h, p = run(cw)
+        assert np.isclose(h['loss'], h['loss_net'] + cw * h['loss_cluster'] + h['loss_kl'], atol=1e-5), (cw, h)
+        assert not all(torch.equal(a, b) for a, b in zip(ref, p))
+
+
 if __name__ == '__main__':
     for name, fn in list(globals().items()):
         if name.startswith('test_'):
