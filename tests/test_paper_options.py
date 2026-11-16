@@ -3,7 +3,7 @@
 - num_relations=4 (paper: "four graph relations to pass the message"): peak<->cell edges now pass messages,
   so ATAC values affect stage 1 and the peak-source projections are trained.
 - MarsGT_pred(pred_graph='training'): prediction uses exactly the graph built in training.
-- MarsGT(cosine_loss=True): stage-2 loss includes the paper's within-cluster cosine term (eq. 12), on the current batch.
+- MarsGT(cosine_loss=True): stage-2 loss includes the paper's within-cluster cosine term (eq. 17), on the current batch.
 
 Run:  python -m pytest tests/   (or: python tests/test_paper_options.py)
 """

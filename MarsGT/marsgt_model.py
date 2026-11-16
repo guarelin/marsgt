@@ -65,7 +65,7 @@ class GNN_from_raw(nn.Module):
 
 
 def cluster_cosine(cell_emb, labels, reduce='sum', self_pairs=True):
-    """Within-cluster cosine similarity of cell embeddings (the paper's Cos_loss, eq. 13), for one batch.
+    """Within-cluster cosine similarity of cell embeddings (the paper's Cos_loss, eq. 18), for one batch.
 
     For each cluster present in `labels`, the mean cosine similarity over its pairs of cells; then combined across
     clusters by `reduce`:
@@ -227,7 +227,7 @@ class MarsGT(nn.Module):
         """cluster_weight scales the stage-2 label-smoothed clustering loss toward the initial labels (1.0 = released;
         0 removes it, leaving the reconstruction and gene-peak terms). Note that labsm=1.0 is NOT label-free in a
         neutral sense: its target is uniform over all n_hid outputs, which flattens each cell's embedding.
-        cosine_loss=True adds the paper's within-cluster cosine term (eq. 12: Loss = KL_cluster - Cos_loss + ...)
+        cosine_loss=True adds the paper's within-cluster cosine term (eq. 17: Loss = KL_cluster - Cos_loss + ...)
         computed on the CURRENT batch's cell embeddings, as stage 1 does. The released code's version (lll2) used a
         stale stage-1 tensor (self.h) and was commented out; default False keeps the released behaviour."""
         super(MarsGT, self).__init__()
@@ -367,7 +367,7 @@ class MarsGT(nn.Module):
                     loss = loss_net + loss_cluster + loss_kl  # - lll2   (released)
                 else:
                     loss = loss_net + self.cluster_weight * loss_cluster + loss_kl
-                if self.cosine_loss:   # paper eq. 12 cosine term, on this batch (mirrors stage 1)
+                if self.cosine_loss:   # paper eq. 17 cosine term, on this batch (mirrors stage 1)
                     cos_sum, _ = cluster_cosine(cell_emb, l, self.cosine_reduce, self.cosine_self_pairs)
                     loss = loss - self.cosine_weight * cos_sum
                     ep['cos_sim'] = ep.get('cos_sim', 0.0) + float(torch.as_tensor(cos_sum).detach())
